@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Latent Aligner Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oxanium:wght@400;600&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #050711;
+        --panel: rgba(10, 12, 32, 0.85);
+        --border: rgba(68, 217, 255, 0.25);
+        --text: #e8ecff;
+        --muted: #9aa6d5;
+        --neon-blue: #44d9ff;
+        --neon-pink: #ff3cac;
+        --neon-orange: #ffb347;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Inter', 'Oxanium', 'Share Tech Mono', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        min-height: 100vh;
+        color: var(--text);
+        background: radial-gradient(circle at 20% 20%, rgba(68, 217, 255, 0.2), transparent 35%),
+          radial-gradient(circle at 80% 0%, rgba(255, 60, 172, 0.25), transparent 40%),
+          radial-gradient(circle at 50% 80%, rgba(255, 179, 71, 0.15), transparent 45%),
+          var(--bg);
+      }
+      body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(120deg, rgba(68, 217, 255, 0.05), rgba(255, 60, 172, 0.08));
+        pointer-events: none;
+      }
+      .hero {
+        padding: 48px 6vw 0;
+        text-shadow: 0 0 22px rgba(68, 217, 255, 0.25);
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: 2.9rem;
+        background: linear-gradient(120deg, var(--neon-blue), var(--neon-pink));
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .hero p {
+        color: var(--muted);
+        max-width: 760px;
+        margin-top: 10px;
+      }
+      .app-wrapper {
+        padding: 24px 6vw 60px;
+      }
+      .app {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 24px;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(68, 217, 255, 0.08);
+        backdrop-filter: blur(18px);
+      }
+      .panel h2 {
+        margin-top: 0;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--neon-blue);
+      }
+      .chat-window {
+        display: flex;
+        flex-direction: column;
+        height: 75vh;
+      }
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 8px;
+        margin-bottom: 18px;
+      }
+      .bubble {
+        padding: 14px 18px;
+        border-radius: 18px;
+        margin-bottom: 12px;
+        max-width: 85%;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        border: 1px solid transparent;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+      }
+      .bubble.user {
+        background: linear-gradient(140deg, rgba(255, 60, 172, 0.85), rgba(255, 179, 71, 0.85));
+        border-color: rgba(255, 179, 71, 0.4);
+        color: #170012;
+        margin-left: auto;
+        font-weight: 600;
+      }
+      .bubble.assistant {
+        background: rgba(68, 217, 255, 0.15);
+        border-color: rgba(68, 217, 255, 0.5);
+      }
+      .input-row {
+        display: flex;
+        gap: 12px;
+      }
+      .input-row input {
+        flex: 1;
+        padding: 14px 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(68, 217, 255, 0.35);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text);
+      }
+      .input-row button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(120deg, var(--neon-blue), var(--neon-pink));
+        color: #050711;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        text-transform: uppercase;
+        box-shadow: 0 0 25px rgba(255, 60, 172, 0.4);
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .stat-card {
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(68, 217, 255, 0.35);
+        background: rgba(255, 255, 255, 0.02);
+        box-shadow: inset 0 0 25px rgba(68, 217, 255, 0.05);
+      }
+      .stat-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+      .stat-value {
+        font-size: 1.9rem;
+        font-weight: 700;
+        margin-top: 6px;
+        color: var(--neon-blue);
+      }
+      .stat-sub {
+        font-size: 0.8rem;
+        margin-top: 6px;
+        color: var(--muted);
+      }
+      .events {
+        margin-top: 16px;
+        max-height: 200px;
+        overflow: auto;
+        font-size: 0.9rem;
+      }
+      .event {
+        border-left: 3px solid var(--neon-pink);
+        padding-left: 12px;
+        margin-bottom: 12px;
+        color: var(--muted);
+      }
+      canvas {
+        width: 100% !important;
+        height: 220px !important;
+      }
+    </style></style>
+  </head>
+  <body>
+    <header class="hero">
+      <h1>Human Preference Tracking Dashboard</h1>
+      <p>实时查看对话、reward、升维事件和 latent 表征，让偏好对齐过程一目了然。</p>
+    </header>
+    <div class="app-wrapper">
+      <div class="app">
+        <section class="panel chat-window">
+        <h2>🤖 实时对话</h2>
+        <div id="messages" class="messages"></div>
+        <div class="input-row">
+          <input id="userInput" type="text" placeholder="输入消息，按 Enter 发送" />
+          <button id="sendBtn">发送</button>
+        </div>
+      </section>
+
+        <section class="panel">
+        <h2>📊 偏好学习面板</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">当前轮数</div>
+            <div id="turnStat" class="stat-value">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">子空间维度 k</div>
+            <div id="kStat" class="stat-value">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">最近 MSE</div>
+            <div id="mseStat" class="stat-value">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">最新 reward</div>
+            <div id="rewardStat" class="stat-value">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">上一轮 Tokens</div>
+            <div id="tokenLastStat" class="stat-value">--</div>
+            <div id="tokenLastDetail" class="stat-sub">prompt 0 · completion 0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">累计 Tokens</div>
+            <div id="tokenTotalStat" class="stat-value">--</div>
+            <div id="tokenTotalDetail" class="stat-sub">prompt 0 · completion 0</div>
+          </div>
+        </div>
+
+        <h3>Reward 历史</h3>
+        <canvas id="rewardChart"></canvas>
+
+        <h3>升维事件</h3>
+        <div id="events" class="events"></div>
+
+        <h3>w_hat (前 8 维)</h3>
+        <div id="wHatPreview" class="events"></div>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const messagesEl = document.getElementById('messages');
+      const inputEl = document.getElementById('userInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const rewardStat = document.getElementById('rewardStat');
+      const turnStat = document.getElementById('turnStat');
+      const kStat = document.getElementById('kStat');
+      const mseStat = document.getElementById('mseStat');
+      const tokenLastStat = document.getElementById('tokenLastStat');
+      const tokenLastDetail = document.getElementById('tokenLastDetail');
+      const tokenTotalStat = document.getElementById('tokenTotalStat');
+      const tokenTotalDetail = document.getElementById('tokenTotalDetail');
+      const eventsEl = document.getElementById('events');
+      const wHatPreviewEl = document.getElementById('wHatPreview');
+
+      const ctx = document.getElementById('rewardChart');
+      const rewardChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'reward',
+              data: [],
+              tension: 0.3,
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          scales: {
+            y: { suggestedMin: -1, suggestedMax: 1 },
+            x: { display: false },
+          },
+          plugins: { legend: { display: false } },
+        },
+      });
+
+      function appendMessage(role, content) {
+        const div = document.createElement('div');
+        div.className = `bubble ${role}`;
+        div.textContent = content;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function renderConversation(conversation) {
+        messagesEl.innerHTML = '';
+        conversation.forEach((item) => {
+          appendMessage(item.role, item.content);
+        });
+      }
+
+      function formatTokenLine(usage) {
+        if (!usage) return 'prompt 0 · completion 0';
+        return `prompt ${usage.prompt_tokens || 0} · completion ${usage.completion_tokens || 0}`;
+      }
+
+      function formatNumber(value, digits = 3) {
+        if (value === undefined || value === null || Number.isNaN(value)) return '--';
+        const num = Number(value);
+        return Number.isFinite(num) ? num.toFixed(digits) : '--';
+      }
+
+      function renderStats(stats) {
+        turnStat.textContent = stats.turn;
+        kStat.textContent = stats.current_k;
+        mseStat.textContent = stats.recent_mse ? stats.recent_mse.toFixed(3) : '--';
+        if (stats.reward_history.length) {
+          const last = stats.reward_history[stats.reward_history.length - 1];
+          rewardStat.textContent = last.toFixed(2);
+        }
+        const tokenStats = stats.token_stats || {};
+        const lastTokens = tokenStats.last ? tokenStats.last.reply : null;
+        const totalTokens = tokenStats.total ? tokenStats.total.reply : null;
+        const lastSum = lastTokens
+          ? lastTokens.total_tokens || lastTokens.prompt_tokens + lastTokens.completion_tokens
+          : null;
+        const totalSum = totalTokens
+          ? totalTokens.total_tokens || totalTokens.prompt_tokens + totalTokens.completion_tokens
+          : null;
+        tokenLastStat.textContent = lastSum !== null ? lastSum : '--';
+        tokenLastDetail.textContent = formatTokenLine(lastTokens);
+        tokenTotalStat.textContent = totalSum !== null ? totalSum : '--';
+        tokenTotalDetail.textContent = formatTokenLine(totalTokens);
+        rewardChart.data.labels = stats.reward_history.map((_, idx) => idx + 1);
+        rewardChart.data.datasets[0].data = stats.reward_history;
+        rewardChart.update();
+
+        if (stats.dim_events && stats.dim_events.length) {
+          eventsEl.innerHTML = stats.dim_events
+            .map(
+              (evt) => `
+                <div class="event">
+                  <div>第 ${evt.step} 轮</div>
+                  <div>k: ${evt.previous_k} → ${evt.new_k}</div>
+                  <div>mean r ≈ ${formatNumber(evt.mean_reward, 2)}, ||grad|| ≈ ${formatNumber(evt.residual_norm)}</div>
+                </div>`
+            )
+            .join('');
+        } else {
+          eventsEl.innerHTML = '<div class="event">暂无升维事件</div>';
+        }
+
+        wHatPreviewEl.innerHTML = stats.w_hat_preview
+          .map((value, idx) => `维度 ${idx + 1}: ${value}`)
+          .join('<br />');
+      }
+
+      async function sendMessage() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+        inputEl.value = '';
+        sendBtn.disabled = true;
+        appendMessage('user', text);
+        try {
+          const resp = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text }),
+          });
+          const data = await resp.json();
+          renderConversation(data.conversation);
+          renderStats(data.stats);
+        } catch (err) {
+          appendMessage('assistant', '⚠️ 请求失败，请查看后端日志');
+          console.error(err);
+        } finally {
+          sendBtn.disabled = false;
+          inputEl.focus();
+        }
+      }
+
+      sendBtn.addEventListener('click', sendMessage);
+      inputEl.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Enter' && !evt.shiftKey) {
+          evt.preventDefault();
+          sendMessage();
+        }
+      });
+
+      function connectWS() {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws = new WebSocket(`${protocol}://${location.host}/ws/state`);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            renderConversation(data.conversation);
+            renderStats(data.stats);
+          } catch (err) {
+            console.error('ws message error', err);
+          }
+        };
+        ws.onclose = () => {
+          setTimeout(connectWS, 2000);
+        };
+        ws.onerror = () => ws.close();
+      }
+
+      connectWS();
+    </script>
+  </body>
+</html>

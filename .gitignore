@@ -1,0 +1,11 @@
+# Secrets & local config
+.env
+*.env
+
+# Runtime artifacts
+logs/
+__pycache__/
+*.pyc
+
+# Node/JS deps (if ever added)
+node_modules/
