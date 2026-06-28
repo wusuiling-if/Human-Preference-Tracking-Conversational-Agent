@@ -1,148 +1,155 @@
-<div align="center">
+# Human Preference Tracking Conversational Agent
 
-# 🧠 Human-Preference-Tracking Conversational Agent
+An experimental conversational agent that adapts its response style from implicit user feedback.  
+The project combines a latent preference aligner, LLM-based reward estimation, a stateful conversation loop, and a FastAPI dashboard for observing the alignment process.
 
-**[ Dynamic Alignment · Anthropomorphic Memory · Dual-Process System ]**
+This is not a production chatbot. It is a small research-style prototype for exploring how an AI companion could learn style preferences without asking users to rate every response.
 
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg?style=for-the-badge&logo=python)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai)](https://openai.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
+## Why It Exists
 
-<p>
-    <a href="#en"><b>🇺🇸 English Documentation</b></a> •
-    <a href="#cn"><b>🇨🇳 中文文档</b></a>
-</p>
+Most chat applications treat personalization as a prompt problem: write a better system prompt, add some memory, and hope the model behaves. This project tests a different question:
 
-</div>
+> Can the assistant maintain a compact latent model of the user's preferred interaction style, then update that model from natural follow-up messages?
 
----
+The system converts conversational reactions into a reward signal, updates a low-dimensional preference subspace, and surfaces the internal learning state in a web dashboard.
 
-<div id="en"></div>
+## Core Ideas
 
-## 🇺🇸 English Documentation
+- **Latent preference tracking**: responses are conditioned by a sampled style vector from a learned latent subspace.
+- **Implicit reward estimation**: an LLM reads the user's next natural response and estimates satisfaction in `[-1, 1]`.
+- **Adaptive dimensionality**: when recent reward is poor and residual signal is strong, the aligner can expand its latent subspace.
+- **Operational visibility**: reward history, current `k`, token usage, style hints, and dimension expansion events are exposed through a dashboard.
+- **Two interfaces**: a CLI demo for quick iteration and a FastAPI + WebSocket UI for interactive debugging.
 
-### 📖 Introduction
-**HPT-Agent** is a cutting-edge conversational framework designed to solve the "amnesia" and "inconsistency" problems in long-term LLM interactions. By integrating **Real-time Preference Tracking** and **Latent Alignment**, this agent evolves its personality and communication strategy to fit the user's implicit needs.
+## Architecture
 
-### ✨ Key Features
-
-| 🔥 Dynamic Preference Tracking | 🎛️ Latent Alignment |
-| :--- | :--- |
-| **Beyond Static Profiles.** The system calculates a real-time `User Embedding` based on semantic streams, capturing subtle shifts in emotion, topic interest, and logic depth. | **Abstract-to-Concrete Mapping.** A unique layer that mathematically maps the abstract "Preference Vector" to concrete LLM control parameters (Temperature, Verbosity, Tone). |
-
-| 🧬 Anthropomorphic Simulation | 🧠 Dual-Loop Architecture |
-| :--- | :--- |
-| Built-in `UserEnv` based on **Big Five Personality Traits** for high-throughput reinforcement learning (RL) or A/B testing without human intervention. | A robust state machine (`Session Core`) that manages the conversation loop separately from the cognitive preference update loop. |
-
-### 🛠️ System Architecture
-
-The system utilizes a dual-loop mechanism: the **Interaction Loop** handles dialogue, while the **Cognitive Loop** manages preference updates.
-
-```mermaid
-graph TD
-    subgraph "User Environment"
-        User([👤 User / SimUser]) <-->|Interaction| FE[Web Frontend / API]
-    end
-
-    subgraph "Agent Core Brain"
-        FE -->|Input Text| SC[⚙️ Session Core]
-        
-        %% Analysis Loop
-        SC -->|Analyze Stream| PT[🔍 Preference Tracker]
-        PT -->|Update| PV[("🧬 Preference Vector")]
-        
-        %% Alignment Loop
-        PV -->|Vector State| LA[🎛️ Latent Aligner]
-        LA -->|Hyper-params & SysPrompt| LB[🌉 LLM Bridge]
-        
-        %% Generation
-        LB <-->|Inference| LLM[🤖 Model GPT/Local]
-        LLM -->|Response| SC
-    end
+```text
+User message
+    |
+    v
+ConversationSession
+    |
+    |-- previous pending action + new user reaction
+    |       -> LLM reward estimator
+    |       -> LatentAligner.update_with_sample()
+    |
+    |-- sample next latent action vector
+    |       -> LLM actor prompt with style_code
+    |       -> assistant reply
+    |
+    v
+FastAPI / CLI response
+    |
+    v
+Dashboard telemetry: reward, k, tokens, w_hat preview, dim events
 ```
 
-### ⚡ Quick Start
+## Project Structure
 
-1.  **Clone & Install**
-    ```bash
-    git clone [https://github.com/wusuiling-if/Human-Preference-Tracking-Conversational-Agent.git](https://github.com/wusuiling-if/Human-Preference-Tracking-Conversational-Agent.git)
-    pip install -r requirements.txt
-    ```
+```text
+.
+├── latent_aligner.py      # Online latent preference model and subspace expansion
+├── llm_bridge.py          # LLM actor + reward estimator bridge
+├── session_core.py        # Stateful conversation loop shared by CLI and API
+├── run_simulation.py      # Offline simulation with synthetic users
+├── run_llm_online.py      # CLI demo with a real LLM
+├── web_server.py          # FastAPI API, WebSocket, and static frontend
+├── web_frontend/
+│   └── index.html         # Debug dashboard
+├── config.py              # Experiment parameters
+├── user_env.py            # Synthetic user environment for simulation
+└── requirements.txt
+```
 
-2.  **Setup Key**
-    ```bash
-    export OPENAI_API_KEY="sk-xxxx..."
-    ```
+## Quick Start
 
-3.  **Run Demo**
-    ```bash
-    python web_server.py
-    # Visit http://localhost:8000 to see the real-time preference radar.
-    ```
+### 1. Install
 
----
-
-<div id="cn"></div>
-
-## 🇨🇳 中文文档
-
-### 📖 项目简介
-**HPT-Agent** 是一个前沿的智能体框架，致力于解决大模型在长程交互中“遗忘用户个性”的痛点。它通过**实时偏好建模**与**潜变量对齐（Latent Alignment）**，让 AI 能够随着对话深入，自动“进化”出最适合用户的沟通策略，仿佛拥有了“心智”。
-
-### ✨ 核心功能
-
-| 🔥 实时偏好追踪 | 🎛️ 潜变量对齐 (Latent Alignment) |
-| :--- | :--- |
-| **拒绝静态画像**。系统基于语义流实时计算 `User Embedding`，敏锐捕捉用户在情绪、话题偏好、逻辑深度上的微小变化。 | **独创的参数映射层**。将抽象的“偏好向量”数学化地映射为 LLM 的具体控制参数（如温度、回复长度、语气指令）。 |
-
-| 🧬 拟人化仿真环境 | 🧠 双循环架构 |
-| :--- | :--- |
-| 内置 `UserEnv`，支持生成具有 **Big Five (大五人格)** 特征的虚拟用户，用于低成本的大规模强化学习 (RL) 训练或 AB 测试。 | 基于 `Session Core` 的状态机管理，将“对话交互”与“认知更新”解耦，确保高并发下的稳定性。 |
-
-### 🛠️ 架构设计
-
-系统采用双循环架构：**外层对话循环**处理交互，**内层认知循环**处理偏好更新与对齐。
-
-> *（详细架构图请参考上文 English Section 的图表，逻辑通用）*
-
-### ⚡ 快速上手
-
-**1. 环境准备**
 ```bash
-git clone [https://github.com/wusuiling-if/Human-Preference-Tracking-Conversational-Agent.git](https://github.com/wusuiling-if/Human-Preference-Tracking-Conversational-Agent.git)
-cd Human-Preference-Tracking-Conversational-Agent
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**2. 配置密钥**
-```bash
-# Linux / Mac
-export OPENAI_API_KEY="sk-xxxx..."
+### 2. Configure
 
-# Windows PowerShell
-$env:OPENAI_API_KEY="sk-xxxx..."
+```bash
+cp .env.example .env
 ```
 
-**3. 启动全栈演示 (Web Dashboard)**
-启动后，你将看到一个实时变化的**偏好雷达图**，展示 AI 如何理解你的兴趣。
+Fill in `DEEPSEEK_API_KEY` or another OpenAI-compatible key. Real keys should stay in `.env`, which is ignored by git.
+
+### 3. Run The Synthetic Simulation
+
 ```bash
-python web_server.py
-# 访问 http://localhost:8000
+python run_simulation.py
 ```
 
----
+This runs the latent aligner against a synthetic user preference vector. It is the fastest way to inspect the math loop without calling an LLM.
 
-## 📅 路线图 (Roadmap)
+### 4. Run The CLI Demo
 
-- [x] **Phase 1**: 基础架构搭建，实现实时偏好向量更新。
-- [x] **Phase 2**: Web 可视化前端，支持 WebSocket 实时数据流。
-- [ ] **Phase 3**: 引入 **RLHF (Reinforcement Learning from Human Feedback)** 接口。
-- [ ] **Phase 4**: 支持本地量化模型 (Llama 3 / Mistral) 的端侧部署。
-- [ ] **Phase 5**: 长期记忆向量库 (Vector DB) 集成。
+```bash
+python run_llm_online.py
+```
 
----
+Each user message becomes both an input for the next assistant response and, when applicable, a natural reaction used to estimate reward for the previous turn.
 
-<div align="center">
-    <p>Made with ❤️ by wusuiling-if</p>
-</div>
+### 5. Run The Web Dashboard
+
+```bash
+uvicorn web_server:app --reload --port 8000
+```
+
+Open `http://127.0.0.1:8000`.
+
+The dashboard shows:
+
+- live conversation
+- latest and historical reward
+- current latent dimension `k`
+- token usage
+- dimension expansion events
+- preview of the learned preference vector
+
+## API
+
+### `POST /api/chat`
+
+```json
+{
+  "message": "I prefer shorter answers with concrete next steps."
+}
+```
+
+Returns the assistant response, debug information, current stats, and recent conversation tail.
+
+### `GET /api/state`
+
+Returns current telemetry without sending a new message.
+
+### `WS /ws/state`
+
+Pushes dashboard state updates over WebSocket.
+
+## What This Demonstrates
+
+- Turning vague product ideas about "personalized AI companions" into an inspectable prototype.
+- Building an LLM application loop with explicit state, reward estimation, logs, and a debug surface.
+- Separating model behavior into actor generation, reward judgment, and latent preference update modules.
+- Designing AI features so failure cases are observable instead of hidden inside prompt text.
+
+## Limitations
+
+- Reward estimation is model-dependent and can be noisy.
+- The latent style vector is intentionally abstract; dimensions are not directly human-interpretable.
+- The current implementation is single-session and in-memory.
+- This is a prototype for experimentation, not a hardened multi-user service.
+
+## Next Steps
+
+- Add deterministic tests for `LatentAligner`.
+- Persist sessions and preference state by `user_id`.
+- Add an evaluation script over scripted conversation traces.
+- Support multiple reward models and compare judge stability.
+- Add screenshots or short recordings of the dashboard.
